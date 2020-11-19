@@ -134,7 +134,7 @@ def train_model(model, max_epochs, training_generator, validation_generator, los
     for epoch in range(max_epochs):
         # training
         with torch.set_grad_enabled(True):
-            pbar = tqdm(total=number_batches, ascii=True, colour="green", ncols=100, dynamic_ncols=True,
+            pbar = tqdm(total=number_batches, ascii=True, ncols=100, dynamic_ncols=True,
                         desc=str(epoch + 1) + "/" + str(max_epochs) + ": ")
             for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(training_generator):
                 # transfer to GPU
@@ -159,7 +159,6 @@ def train_model(model, max_epochs, training_generator, validation_generator, los
 
         # validation
         with torch.set_grad_enabled(False):
-            pbar.__setattr__("colour", "red")
             for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(validation_generator):
                 # transfer to GPU
                 x_batch = x_batch.to(device)
@@ -173,5 +172,8 @@ def train_model(model, max_epochs, training_generator, validation_generator, los
                                                y_policy_batch, y_hat_policy_batch)
                 # printing information
                 pbar.update(1)
-        pbar.set_postfix_str('Loss: {:.4f}; Validation Loss: {:.4f}'.format(loss_batch_train, loss_batch_val))
+        try:
+            pbar.set_postfix_str('Loss: {:.4f}; Validation Loss: {:.4f}'.format(loss_batch_train, loss_batch_val))
+        except BaseException as e: # NOQA
+            pbar.set_postfix_str('Loss: {:.4f}; Validation'.format(loss_batch_train))
         pbar.close()

@@ -132,7 +132,7 @@ class PGNDatabase(Dataset):
                 board = game.board()
                 for move in game.main_line():
                     # get board state
-                    board_state = board.board_fen()
+                    board_state = board.fen()
 
                     # get move corresponding to this state as UCI standard
                     move_uci = move.uci()
