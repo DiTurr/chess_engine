@@ -8,9 +8,144 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # NOQA
 from tqdm import tqdm
+import torch.optim as optim
+import matplotlib.pyplot as plt
 
-NUM_RESIDUAL_LAYERS = 40
+NUM_RESIDUAL_LAYERS = 20
 NUM_CHANNELS_CONV2D = 256
+
+
+class AlphaZeroModel:
+    def __init__(self, max_epochs, training_generator, validation_generator, loss_function=None, optimizer=None):
+        """
+
+        """
+        # input parameters as attributes
+        self.model = AlphaZeroNet()
+        if torch.cuda.is_available():
+            self.model.cuda()
+        self.max_epochs = max_epochs
+        self.training_generator = training_generator
+        self.validation_generator = validation_generator
+        if loss_function is None:
+            self.loss_function = AlphaLoss()
+        else:
+            self.loss_function = loss_function
+        if optimizer is None:
+            self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
+        else:
+            self.optimizer = optimizer
+
+        # calculated attributes
+        self.history = None
+
+    def train(self):
+        """
+
+        """
+        # CUDA for PyTorch
+        use_cuda = torch.cuda.is_available()
+        device = torch.device("cuda:0" if use_cuda else "cpu")
+
+        # loop over epochs
+        self.history = {"loss": [], "val_loss": []}
+        for epoch in range(self.max_epochs):
+            # create progress bar
+            pbar = tqdm(total=len(self.training_generator) + len(self.validation_generator),
+                        ascii=True, ncols=100, dynamic_ncols=True,
+                        desc=str(epoch + 1).zfill(5) + "/" + str(self.max_epochs).zfill(5) + ": ")
+
+            # training
+            running_loss_batch_train = 0
+            mean_loss_batch_train = None
+            with torch.set_grad_enabled(True):
+                for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.training_generator):
+                    # transfer to GPU
+                    x_batch = x_batch.to(device)
+                    y_policy_batch = y_policy_batch.to(device)
+                    y_winner_batch = y_winner_batch.to(device)
+
+                    # zero the parameter gradients
+                    self.optimizer.zero_grad()
+
+                    # set model to training mode
+                    self.model.train()
+
+                    # forward + backward + optimize
+                    (y_hat_winner_batch, y_hat_policy_batch) = self.model(x_batch)
+                    loss_batch_train = self.loss_function(y_winner_batch, y_hat_winner_batch, y_policy_batch,
+                                                          y_hat_policy_batch)
+                    loss_batch_train.backward()
+                    self.optimizer.step()
+
+                    # printing information/statistics
+                    running_loss_batch_train += loss_batch_train.item()
+                    mean_loss_batch_train = running_loss_batch_train / (index + 1)
+                    pbar.update(1)
+                    pbar.set_postfix_str('Loss: {:.4f}'.format(mean_loss_batch_train))
+
+            # validation
+            running_loss_batch_val = 0
+            mean_loss_batch_val = None
+            with torch.set_grad_enabled(False):
+                for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.validation_generator):
+                    # transfer to GPU
+                    x_batch = x_batch.to(device)
+                    y_policy_batch = y_policy_batch.to(device)
+                    y_winner_batch = y_winner_batch.to(device)
+
+                    # set model to evaluate mode
+                    self.model.eval()
+
+                    # model computations: forward
+                    (y_hat_winner_batch, y_hat_policy_batch) = self.model(x_batch)
+                    loss_batch_val = self.loss_function(y_winner_batch, y_hat_winner_batch, y_policy_batch,
+                                                        y_hat_policy_batch)
+
+                    # printing information/statistics
+                    running_loss_batch_val += loss_batch_val.item()
+                    mean_loss_batch_val = running_loss_batch_val / (index + 1)
+                    pbar.update(1)
+                    pbar.set_postfix_str('Loss: {:.4f}; Validation Loss: {:.4f}'.
+                                         format(mean_loss_batch_train, mean_loss_batch_val))
+
+            # save information
+            if mean_loss_batch_train is not None:
+                self.history["loss"].append(mean_loss_batch_train)
+            if mean_loss_batch_val is not None:
+                self.history["val_loss"].append(mean_loss_batch_val)
+
+            # close progress bar
+            pbar.close()
+
+        # return the training history
+        return self.history
+
+    def plot_history(self):
+        """
+
+        """
+        fig, axs = plt.subplots()
+        axs.plot(self.history["loss"])
+        axs.plot(self.history["val_loss"])
+        axs.set_title("AlphaZero Losses")
+        plt.grid()
+        plt.show()
+
+    def save_model(self, path_model_save):
+        """
+
+        """
+        torch.save(self.model, path_model_save)
+
+    def save_checkpoint(self, path_save_checkpoint):
+        """
+
+        """
+        torch.save({
+            'model_state_dict': self.model.state_dict(),
+            'optimizer_state_dict': self.optimizer.state_dict(),
+        }, path_save_checkpoint)
 
 
 class ConvolutionalBlock(nn.Module):
@@ -122,58 +257,3 @@ class AlphaLoss(torch.nn.Module):
         policy_error = torch.sum(y_hat_policy * (1e-10 + y_policy).log(), 1)
         total_error = (winner_error - policy_error).mean()
         return total_error
-
-
-def train_model(model, max_epochs, training_generator, validation_generator, loss_function, optimizer):
-    # CUDA for PyTorch
-    use_cuda = torch.cuda.is_available()
-    device = torch.device("cuda:0" if use_cuda else "cpu")
-
-    # loop over epochs
-    number_batches = len(training_generator) + len(validation_generator)
-    for epoch in range(max_epochs):
-        # training
-        with torch.set_grad_enabled(True):
-            pbar = tqdm(total=number_batches, ascii=True, ncols=100, dynamic_ncols=True,
-                        desc=str(epoch + 1) + "/" + str(max_epochs) + ": ")
-            for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(training_generator):
-                # transfer to GPU
-                x_batch = x_batch.to(device)
-                y_policy_batch = y_policy_batch.to(device)
-                y_winner_batch = y_winner_batch.to(device)
-                # set model to training mode
-                model.train()
-                # model computations: forward + backward + optimize
-                # forward
-                (y_hat_winner_batch, y_hat_policy_batch) = model(x_batch)
-                loss_batch_train = loss_function(y_winner_batch, y_hat_winner_batch,
-                                                 y_policy_batch, y_hat_policy_batch)
-                # backward
-                loss_batch_train.backward()
-                # optimize
-                optimizer.step()
-                optimizer.zero_grad()
-                # printing information
-                pbar.update(1)
-                pbar.set_postfix_str('Loss: {:.4f}'.format(loss_batch_train))
-
-        # validation
-        with torch.set_grad_enabled(False):
-            for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(validation_generator):
-                # transfer to GPU
-                x_batch = x_batch.to(device)
-                y_policy_batch = y_policy_batch.to(device)
-                y_winner_batch = y_winner_batch.to(device)
-                # set model to evaluate mode
-                model.eval()
-                # model computations: forward
-                (y_hat_winner_batch, y_hat_policy_batch) = model(x_batch)
-                loss_batch_val = loss_function(y_winner_batch, y_hat_winner_batch,
-                                               y_policy_batch, y_hat_policy_batch)
-                # printing information
-                pbar.update(1)
-        try:
-            pbar.set_postfix_str('Loss: {:.4f}; Validation Loss: {:.4f}'.format(loss_batch_train, loss_batch_val))
-        except BaseException as e: # NOQA
-            pbar.set_postfix_str('Loss: {:.4f}; Validation'.format(loss_batch_train))
-        pbar.close()
