@@ -8,8 +8,8 @@ from torch.utils.data import DataLoader  # NOQA
 from torchsummary import summary
 import torch.optim as optim
 
-from .chess_engine.database import PGNDatabase
-from .chess_engine.model import AlphaZeroNet, AlphaLoss, train_model
+from src.chess_engine.database import PGNDatabase
+from src.chess_engine.model import AlphaZeroNet, AlphaLoss, train_model
 
 if __name__ == "__main__":
     print("[INFO] generating dataloader")

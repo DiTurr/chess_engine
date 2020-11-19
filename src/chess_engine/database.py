@@ -13,7 +13,7 @@ from torch.utils.data import Dataset  # NOQA
 import random
 import os
 
-from ..chess_engine.board import ChessBoard
+from .board import ChessBoard
 
 
 class PGNDatabase(Dataset):
@@ -130,7 +130,7 @@ class PGNDatabase(Dataset):
                 # iterate through all moves and play them on a board.
                 game_winner = {"0-1": -1, "1-0": 1, "1/2-1/2": 0}[game.headers["Result"]]
                 board = game.board()
-                for move in game.mainline_moves():
+                for move in game.main_line():
                     # get board state
                     board_state = board.board_fen()
 
