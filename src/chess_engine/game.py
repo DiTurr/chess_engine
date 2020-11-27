@@ -31,7 +31,7 @@ class ChessGame:
 
         """
         # loop through the game
-        print("###############################################################################")
+        print("===========================================================================================")
         self.game.print(print_board_state=True)
         while True:
             # press input to continue
@@ -43,7 +43,7 @@ class ChessGame:
                 move = self.play_move()
                 if move is not None:
                     self.func_emit(move)
-                    print("###############################################################################")
+                    print("===========================================================================================")
                     self.game.print(print_board_state=True)
                 else:
                     print("[ERROR] No move calculated by ChessEngine is valid ... ")
@@ -57,7 +57,7 @@ class ChessGame:
             else:
                 if self.game.chess_board.is_legal(chess.Move.from_uci(user_move)):
                     self.game.make_move(user_move)
-                    print("###############################################################################")
+                    print("===========================================================================================")
                     self.game.print(print_board_state=True)
                     self.func_emit(user_move)
                 else:
