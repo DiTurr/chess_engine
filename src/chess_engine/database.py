@@ -157,13 +157,17 @@ class PGNDatabase(Dataset):
                         # save pandas dataframe as dataframe
                         df_train = df_train.sample(frac=1).reset_index(drop=True)
                         df_val = df_val.sample(frac=1).reset_index(drop=True)
-                        df_train.to_csv(os.path.join(path_save_csv_database, "chess_train_database.csv"), index=False)
-                        df_val.to_csv(os.path.join(path_save_csv_database, "chess_val_database.csv"), index=False)
+                        df_train.to_csv(os.path.join(path_save_csv_database, "chess_train_database_" +
+                                                     str(counter_samples) + ".csv"), index=False)
+                        df_val.to_csv(os.path.join(path_save_csv_database, "chess_val_database_" +
+                                                   str(counter_samples) + ".csv"), index=False)
                         return 1
 
         # save pandas dataframe as dataframe
         df_train = df_train.sample(frac=1).reset_index(drop=True)
         df_val = df_val.sample(frac=1).reset_index(drop=True)
-        df_train.to_csv(os.path.join(path_save_csv_database, "chess_train_database.csv"), index=False)
-        df_val.to_csv(os.path.join(path_save_csv_database, "chess_val_database.csv"), index=False)
+        df_train.to_csv(os.path.join(path_save_csv_database, "chess_train_database_" +
+                                     str(counter_samples) + ".csv"), index=False)
+        df_val.to_csv(os.path.join(path_save_csv_database, "chess_val_database_" +
+                                   str(counter_samples) + ".csv"), index=False)
         return 0

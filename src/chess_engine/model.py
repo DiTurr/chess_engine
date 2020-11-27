@@ -54,69 +54,110 @@ class AlphaZeroModel:
                         ascii=True, ncols=100, dynamic_ncols=True,
                         desc=str(epoch + 1).zfill(5) + "/" + str(self.epochs).zfill(5) + ": ")
 
-            # training
-            running_loss_batch_train = 0
-            mean_loss_batch_train = None
-            with torch.set_grad_enabled(True):
-                for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.training_generator):
-                    # transfer to GPU
-                    x_batch = x_batch.to(device)
-                    print(x_batch.shape)
-                    y_policy_batch = y_policy_batch.to(device)
-                    y_winner_batch = y_winner_batch.to(device)
-
-                    # zero the parameter gradients
-                    self.optimizer.zero_grad()
-
-                    # set model to training mode
-                    self.model.train()
-
-                    # forward + backward + optimize
-                    (y_hat_winner_batch, y_hat_policy_batch) = self.model(x_batch)
-                    loss_batch_train = self.loss_function(y_winner_batch, y_hat_winner_batch, y_policy_batch,
-                                                          y_hat_policy_batch)
-                    loss_batch_train.backward()
-                    self.optimizer.step()
-
-                    # printing information/statistics
-                    running_loss_batch_train += loss_batch_train.item()
-                    mean_loss_batch_train = running_loss_batch_train / (index + 1)
-                    pbar.update(1)
-                    pbar.set_postfix_str("Loss: {:.4f}".format(mean_loss_batch_train))
-
-            # validation
-            running_loss_batch_val = 0
-            mean_loss_batch_val = None
-            with torch.set_grad_enabled(False):
-                for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.validation_generator):
-                    # transfer to GPU
-                    x_batch = x_batch.to(device)
-                    y_policy_batch = y_policy_batch.to(device)
-                    y_winner_batch = y_winner_batch.to(device)
-
-                    # set model to evaluate mode
-                    self.model.eval()
-
-                    # model computations: forward
-                    (y_hat_winner_batch, y_hat_policy_batch) = self.model(x_batch)
-                    loss_batch_val = self.loss_function(y_winner_batch, y_hat_winner_batch, y_policy_batch,
-                                                        y_hat_policy_batch)
-
-                    # printing information/statistics
-                    running_loss_batch_val += loss_batch_val.item()
-                    mean_loss_batch_val = running_loss_batch_val / (index + 1)
-                    pbar.update(1)
-                    pbar.set_postfix_str("Loss: {:.4f}; Validation Loss: {:.4f}".
-                                         format(mean_loss_batch_train, mean_loss_batch_val))
+            # train epoch
+            mean_loss_epoch_train, mean_loss_epoch_val = self.train_epoch(device, pbar)
 
             # save history information
-            if mean_loss_batch_train is not None:
-                self.history["loss"].append(mean_loss_batch_train)
-            if mean_loss_batch_val is not None:
-                self.history["val_loss"].append(mean_loss_batch_val)
+            if mean_loss_epoch_train is not None:
+                self.history["loss"].append(mean_loss_epoch_train)
+            if mean_loss_epoch_val is not None:
+                self.history["val_loss"].append(mean_loss_epoch_val)
 
             # close progress bar
             pbar.close()
+
+    def retrain(self, path_load_model, epochs):
+        """
+
+        """
+        # set attributes
+        self.load_model(path_load_model)
+
+        # CUDA for PyTorch
+        use_cuda = torch.cuda.is_available()
+        device = torch.device("cuda:0" if use_cuda else "cpu")
+
+        # loop over epochs
+        self.history = {"loss": [], "val_loss": []}
+        for epoch in range(self.epochs, self.epochs + epochs):
+            # create progress bar
+            pbar = tqdm(total=len(self.training_generator) + len(self.validation_generator),
+                        ascii=True, ncols=100, dynamic_ncols=True,
+                        desc=str(epoch + 1).zfill(5) + "/" + str(self.epochs + epochs).zfill(5) + ": ")
+
+            # train epoch
+            mean_loss_epoch_train, mean_loss_epoch_val = self.train_epoch(device, pbar)
+
+            # save history information
+            if mean_loss_epoch_train is not None:
+                self.history["loss"].append(mean_loss_epoch_train)
+            if mean_loss_epoch_val is not None:
+                self.history["val_loss"].append(mean_loss_epoch_val)
+
+            # close progress bar
+            pbar.close()
+
+    def train_epoch(self, device, pbar):
+        """
+
+
+        """
+        # training
+        running_loss_batch_train = 0
+        mean_loss_batch_train = None
+        with torch.set_grad_enabled(True):
+            for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.training_generator):
+                # transfer to GPU
+                x_batch = x_batch.to(device)
+                y_policy_batch = y_policy_batch.to(device)
+                y_winner_batch = y_winner_batch.to(device)
+
+                # zero the parameter gradients
+                self.optimizer.zero_grad()
+
+                # set model to training mode
+                self.model.train()
+
+                # forward + backward + optimize
+                (y_hat_winner_batch, y_hat_policy_batch) = self.model(x_batch)
+                loss_batch_train = self.loss_function(y_winner_batch, y_hat_winner_batch, y_policy_batch,
+                                                      y_hat_policy_batch)
+                loss_batch_train.backward()
+                self.optimizer.step()
+
+                # printing information/statistics
+                running_loss_batch_train += loss_batch_train.item()
+                mean_loss_batch_train = running_loss_batch_train / (index + 1)
+                pbar.update(1)
+                pbar.set_postfix_str("Loss: {:.4f}".format(mean_loss_batch_train))
+
+        # validation
+        running_loss_batch_val = 0
+        mean_loss_batch_val = None
+        with torch.set_grad_enabled(False):
+            for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.validation_generator):
+                # transfer to GPU
+                x_batch = x_batch.to(device)
+                y_policy_batch = y_policy_batch.to(device)
+                y_winner_batch = y_winner_batch.to(device)
+
+                # set model to evaluate mode
+                self.model.eval()
+
+                # model computations: forward
+                (y_hat_winner_batch, y_hat_policy_batch) = self.model(x_batch)
+                loss_batch_val = self.loss_function(y_winner_batch, y_hat_winner_batch, y_policy_batch,
+                                                    y_hat_policy_batch)
+
+                # printing information/statistics
+                running_loss_batch_val += loss_batch_val.item()
+                mean_loss_batch_val = running_loss_batch_val / (index + 1)
+                pbar.update(1)
+                pbar.set_postfix_str("Loss: {:.4f}; Validation Loss: {:.4f}".
+                                     format(mean_loss_batch_train, mean_loss_batch_val))
+
+        # return value
+        return mean_loss_batch_train, mean_loss_batch_val
 
     def predict(self, serialized_board, channel_first=True):
         """
@@ -141,20 +182,30 @@ class AlphaZeroModel:
         y_hat_policy = y_hat_policy.cpu().detach().numpy().reshape((-1, 1))
         return y_hat_winner, y_hat_policy
 
-    def save_model(self, path_save_model):
+    def save_model(self, path_save_model, save_generator=True):
         """
 
         """
-        torch.save({
-            "epoch": self.epochs,
-            "model_state_dict": self.model.state_dict(),
-            "training_generator": self.training_generator,
-            "validation_generator": self.validation_generator,
-            "optimizer_state_dict": self.optimizer.state_dict(),
-            "loss_function": self.loss_function,
-            "optimizer": self.optimizer,
-            "history": self.history,
-        }, path_save_model)
+        if save_generator:
+            torch.save({
+                "epoch": self.epochs,
+                "model_state_dict": self.model.state_dict(),
+                "training_generator": self.training_generator,
+                "validation_generator": self.validation_generator,
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "loss_function": self.loss_function,
+                "optimizer": self.optimizer,
+                "history": self.history,
+            }, path_save_model)
+        else:
+            torch.save({
+                "epoch": self.epochs,
+                "model_state_dict": self.model.state_dict(),
+                "optimizer_state_dict": self.optimizer.state_dict(),
+                "loss_function": self.loss_function,
+                "optimizer": self.optimizer,
+                "history": self.history,
+            }, path_save_model)
 
     def load_model(self, path_load_model):
         """

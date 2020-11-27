@@ -28,7 +28,7 @@ class MyWidget(QtWidgets.QWidget):
         self.widgetSvg.load(self.chessboardSvg)
 
         # configure and start thrread
-        self.displayer_chess_game = ChessGameBackend()
+        self.displayer_chess_game = ChessEngineBackend()
         self.thread = QtCore.QThread(self)
         self.displayer_chess_game.move.connect(self.move_callback) # NOQA
         self.displayer_chess_game.moveToThread(self.thread)
@@ -46,7 +46,7 @@ class MyWidget(QtWidgets.QWidget):
         self.widgetSvg.load(self.chessboardSvg)
 
 
-class ChessGameBackend(QtCore.QObject):
+class ChessEngineBackend(QtCore.QObject):
     move = QtCore.pyqtSignal(str)
     
     @QtCore.pyqtSlot()

@@ -6,8 +6,8 @@ Implementation of chess game.
 """
 import chess
 
-from src.chess_engine.model import AlphaZeroModel
-from src.chess_engine.board import ChessBoard
+from .model import AlphaZeroModel
+from .board import ChessBoard
 
 
 class ChessGame:
