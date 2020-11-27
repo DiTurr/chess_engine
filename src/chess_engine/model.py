@@ -8,52 +8,51 @@ import torch
 import torch.nn as nn
 import torch.nn.functional as F  # NOQA
 from tqdm import tqdm
-import torch.optim as optim
 import matplotlib.pyplot as plt
+import numpy as np
 
 NUM_RESIDUAL_LAYERS = 20
 NUM_CHANNELS_CONV2D = 256
 
 
 class AlphaZeroModel:
-    def __init__(self, max_epochs, training_generator, validation_generator, loss_function=None, optimizer=None):
+    def __init__(self):
         """
 
         """
-        # input parameters as attributes
+        # attributes
         self.model = AlphaZeroNet()
         if torch.cuda.is_available():
             self.model.cuda()
-        self.max_epochs = max_epochs
-        self.training_generator = training_generator
-        self.validation_generator = validation_generator
-        if loss_function is None:
-            self.loss_function = AlphaLoss()
-        else:
-            self.loss_function = loss_function
-        if optimizer is None:
-            self.optimizer = optim.SGD(self.model.parameters(), lr=0.001, momentum=0.9)
-        else:
-            self.optimizer = optimizer
-
-        # calculated attributes
+        self.epochs = None
+        self.training_generator = None
+        self.validation_generator = None
+        self.loss_function = None
+        self.optimizer = None
         self.history = None
 
-    def train(self):
+    def train(self, epochs, training_generator, validation_generator, loss_function, optimizer):
         """
 
         """
+        # set attributes
+        self.epochs = epochs
+        self.training_generator = training_generator
+        self.validation_generator = validation_generator
+        self.loss_function = loss_function
+        self.optimizer = optimizer
+
         # CUDA for PyTorch
         use_cuda = torch.cuda.is_available()
         device = torch.device("cuda:0" if use_cuda else "cpu")
 
         # loop over epochs
         self.history = {"loss": [], "val_loss": []}
-        for epoch in range(self.max_epochs):
+        for epoch in range(self.epochs):
             # create progress bar
             pbar = tqdm(total=len(self.training_generator) + len(self.validation_generator),
                         ascii=True, ncols=100, dynamic_ncols=True,
-                        desc=str(epoch + 1).zfill(5) + "/" + str(self.max_epochs).zfill(5) + ": ")
+                        desc=str(epoch + 1).zfill(5) + "/" + str(self.epochs).zfill(5) + ": ")
 
             # training
             running_loss_batch_train = 0
@@ -62,6 +61,7 @@ class AlphaZeroModel:
                 for index, (x_batch, y_policy_batch, y_winner_batch) in enumerate(self.training_generator):
                     # transfer to GPU
                     x_batch = x_batch.to(device)
+                    print(x_batch.shape)
                     y_policy_batch = y_policy_batch.to(device)
                     y_winner_batch = y_winner_batch.to(device)
 
@@ -82,7 +82,7 @@ class AlphaZeroModel:
                     running_loss_batch_train += loss_batch_train.item()
                     mean_loss_batch_train = running_loss_batch_train / (index + 1)
                     pbar.update(1)
-                    pbar.set_postfix_str('Loss: {:.4f}'.format(mean_loss_batch_train))
+                    pbar.set_postfix_str("Loss: {:.4f}".format(mean_loss_batch_train))
 
             # validation
             running_loss_batch_val = 0
@@ -106,10 +106,10 @@ class AlphaZeroModel:
                     running_loss_batch_val += loss_batch_val.item()
                     mean_loss_batch_val = running_loss_batch_val / (index + 1)
                     pbar.update(1)
-                    pbar.set_postfix_str('Loss: {:.4f}; Validation Loss: {:.4f}'.
+                    pbar.set_postfix_str("Loss: {:.4f}; Validation Loss: {:.4f}".
                                          format(mean_loss_batch_train, mean_loss_batch_val))
 
-            # save information
+            # save history information
             if mean_loss_batch_train is not None:
                 self.history["loss"].append(mean_loss_batch_train)
             if mean_loss_batch_val is not None:
@@ -118,34 +118,95 @@ class AlphaZeroModel:
             # close progress bar
             pbar.close()
 
-        # return the training history
-        return self.history
+    def predict(self, serialized_board, channel_first=True):
+        """
+
+        """
+        # CUDA for PyTorch
+        use_cuda = torch.cuda.is_available()
+        device = torch.device("cuda:0" if use_cuda else "cpu")
+
+        # prepare input for inference
+        if channel_first:
+            serialized_board = np.rollaxis(serialized_board, 2, 0)
+        serialized_board = serialized_board.astype(np.float32)
+        serialized_board = torch.from_numpy(serialized_board)
+        serialized_board = serialized_board.to(device)
+        serialized_board = serialized_board.unsqueeze(0)
+
+        # evaluate model
+        self.model.eval()
+        (y_hat_winner, y_hat_policy) = self.model(serialized_board)
+        y_hat_winner = y_hat_winner.cpu().detach().numpy().reshape((-1, 1))
+        y_hat_policy = y_hat_policy.cpu().detach().numpy().reshape((-1, 1))
+        return y_hat_winner, y_hat_policy
+
+    def save_model(self, path_save_model):
+        """
+
+        """
+        torch.save({
+            "epoch": self.epochs,
+            "model_state_dict": self.model.state_dict(),
+            "training_generator": self.training_generator,
+            "validation_generator": self.validation_generator,
+            "optimizer_state_dict": self.optimizer.state_dict(),
+            "loss_function": self.loss_function,
+            "optimizer": self.optimizer,
+            "history": self.history,
+        }, path_save_model)
+
+    def load_model(self, path_load_model):
+        """
+
+
+        """
+        checkpoint = torch.load(path_load_model)
+        self.model.load_state_dict(checkpoint["model_state_dict"])
+
+        self.epochs = checkpoint["epoch"]
+
+        self.training_generator = checkpoint["training_generator"]
+
+        self.validation_generator = checkpoint["validation_generator"]
+
+        self.loss_function = checkpoint["loss_function"]
+
+        self.optimizer = checkpoint["optimizer"]
+        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
+
+        self.history = checkpoint["history"]
 
     def plot_history(self):
         """
 
         """
-        fig, axs = plt.subplots()
-        axs.plot(self.history["loss"])
-        axs.plot(self.history["val_loss"])
-        axs.set_title("AlphaZero Losses")
-        plt.grid()
-        plt.show()
+        if self.history is not None:
+            fig, axs = plt.subplots()
+            axs.plot(self.history["loss"])
+            axs.plot(self.history["val_loss"])
+            axs.set_title("AlphaZero Losses")
+            plt.grid()
+            plt.show()
+        else:
+            print("[ERROR] no history to plot ...")
 
-    def save_model(self, path_model_save):
+    @staticmethod
+    def get_best_moves(y_hat_policy, num_moves=5):
         """
 
-        """
-        torch.save(self.model, path_model_save)
-
-    def save_checkpoint(self, path_save_checkpoint):
-        """
 
         """
-        torch.save({
-            'model_state_dict': self.model.state_dict(),
-            'optimizer_state_dict': self.optimizer.state_dict(),
-        }, path_save_checkpoint)
+        idx_bestmoves = np.argsort(y_hat_policy, axis=0)[::-1]
+        best_serialized_moves = []
+        probability = []
+        for idx in range(num_moves):
+            serialized_move = np.zeros((8*8*73, 1))
+            serialized_move[idx_bestmoves[idx]] = 1
+            serialized_move = serialized_move.reshape((8, 8, -1))
+            best_serialized_moves.append(serialized_move)
+            probability.append(np.asscalar(y_hat_policy[idx_bestmoves[idx, 0]]))
+        return best_serialized_moves, probability
 
 
 class ConvolutionalBlock(nn.Module):

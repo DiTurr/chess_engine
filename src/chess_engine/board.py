@@ -1,5 +1,5 @@
 """
-Implementation of chess board needed for chess engine
+Implementation of chess board needed for chess engine.
 
 @author: DiTurr
 
@@ -34,13 +34,15 @@ class ChessBoard:
 
         Parameters
         ----------
-        move: Move.from_uci
+        move: Move.from_uci or str(UCI move)
             Move to me made.
 
         Returns
         -------
 
         """
+        if isinstance(move, str):
+            move = chess.Move.from_uci(move)
         self.chess_board.push(move)
 
     def serialize_move(self, move):
@@ -368,6 +370,13 @@ class ChessBoard:
         # return serialized_board
         return serialized_board
 
+    def deserialize_board(self):
+        """
+
+
+        """
+        pass
+
     def get_piece_at_position(self, x, y):
         """
         Get the piece give the posicion.
@@ -391,6 +400,70 @@ class ChessBoard:
             return ""
         else:
             return piece.symbol()
+
+    def is_serialized_move_legal(self, move):
+        """
+        Calculates if a given UCI move is legal or not in the actual board state.
+
+        Parameters
+        ----------
+        move: str
+            Move according UCI rules. For example, "d2d4"
+
+        Returns
+        -------
+        valid_flag: bool
+            Validity flag. True if given move is valid in the actual board state.
+
+        """
+        move = move if type(move) is list else [move]
+        moves = []
+        flag_validity_moves = []
+        for idx in range(len(move)):
+            serialized_move = move[idx]
+            try:
+                move_actual = self.deserialize_move(serialized_move)
+                if chess.Move.from_uci(move_actual) in self.chess_board.legal_moves:
+                    moves.append(move_actual)
+                    flag_validity_moves.append(True)
+                else:
+                    moves.append(move_actual)
+                    flag_validity_moves.append(False)
+            except: # NOQA
+                moves.append("")
+                flag_validity_moves.append(False)
+        return moves, flag_validity_moves
+
+    def print(self, print_board_state=False, moves=None, flag_validity_moves=None, probability_moves=None,
+              move_selected=None, probability_move_selected=None):
+        """
+
+
+        """
+        # print board state
+        if print_board_state:
+            print("[INFO] WHITE moves") if self.chess_board.turn else print("[INFO] BLACK moves")
+            print(self.chess_board)
+
+        # print moves, flag_validity_moves and probability_moves
+        if moves is not None and flag_validity_moves is not None and probability_moves is not None:
+            assert len(moves) == len(flag_validity_moves) == len(probability_moves)
+            print("+" + "-"*13 + "+" + "-"*13 + "+" + "-"*13 + "+")
+            print("| Move".ljust(14) +
+                  "| Valid".ljust(14) +
+                  "| Probability".ljust(14) +
+                  "|")
+            print("+" + "="*13 + "+" + "="*13 + "+" + "="*13 + "+")
+            for idx in range(len(moves)):
+                print("| " + moves[idx].ljust(12) +
+                      "| " + str(flag_validity_moves[idx]).ljust(12) +
+                      "| " + "{:.2f}".format(probability_moves[idx]).ljust(12) +
+                      "|")
+                print("+" + "-" * 13 + "+" + "-" * 13 + "+" + "-" * 13 + "+")
+
+        # print selected move
+        if move_selected is not None and probability_move_selected is not None:
+            pass
 
     @staticmethod
     def get_positions_from_move(move):
@@ -432,3 +505,13 @@ class ChessBoard:
             promotion = {"q": "queen", "r": "rook", "n": "knight", "b": "bishop"}[move[4]]
 
         return x_initial, y_initial, x_final, y_final, promotion
+
+    @staticmethod
+    def select_best_move(moves, flag_validity_moves, probability_moves):
+        move_selected = None
+        probability_move_selected = 0
+        for move, flag_validity_move, probability_move in zip(moves, flag_validity_moves, probability_moves):
+            if flag_validity_move and probability_move > probability_move_selected:
+                move_selected = move
+                probability_move_selected = probability_move
+        return move_selected, probability_move_selected
