@@ -178,7 +178,7 @@ class AlphaZeroModel:
         # evaluate model
         self.model.eval()
         (y_hat_winner, y_hat_policy) = self.model(serialized_board)
-        y_hat_winner = y_hat_winner.cpu().detach().numpy().reshape((-1, 1))
+        y_hat_winner = np.asscalar(y_hat_winner.cpu().detach().numpy().reshape((-1, 1)))
         y_hat_policy = y_hat_policy.cpu().detach().numpy().reshape((-1, 1))
         return y_hat_winner, y_hat_policy
 

@@ -434,7 +434,9 @@ class ChessBoard:
                 flag_validity_moves.append(False)
         return moves, flag_validity_moves
 
-    def print(self, print_board_state=False, moves=None, flag_validity_moves=None, probability_moves=None,
+    def print(self, print_board_state=False,
+              moves=None, flag_validity_moves=None, probability_moves=None, num_moves_print=None,
+              probability_winner=None,
               move_selected=None, probability_move_selected=None):
         """
 
@@ -448,22 +450,58 @@ class ChessBoard:
         # print moves, flag_validity_moves and probability_moves
         if moves is not None and flag_validity_moves is not None and probability_moves is not None:
             assert len(moves) == len(flag_validity_moves) == len(probability_moves)
-            print("+" + "-"*13 + "+" + "-"*13 + "+" + "-"*13 + "+")
+            print("+" + "="*13 + "+" + "="*13 + "+" + "="*13 + "+")
             print("| Move".ljust(14) +
                   "| Valid".ljust(14) +
                   "| Probability".ljust(14) +
                   "|")
             print("+" + "="*13 + "+" + "="*13 + "+" + "="*13 + "+")
-            for idx in range(len(moves)):
+            # loop through moves to print
+            if num_moves_print is None:
+                num_moves_print = len(moves)
+            for idx in range(num_moves_print):
                 print("| " + moves[idx].ljust(12) +
                       "| " + str(flag_validity_moves[idx]).ljust(12) +
-                      "| " + "{:.2f}".format(probability_moves[idx]).ljust(12) +
+                      "| " + "{:.5f}".format(probability_moves[idx]).ljust(12) +
                       "|")
-                print("+" + "-" * 13 + "+" + "-" * 13 + "+" + "-" * 13 + "+")
+                if (idx + 1) == num_moves_print:
+                    if probability_winner is not None:
+                        print("+" + "="*13 + "+" + "="*6 + "+" + "="*6 + "+" + "="*13 + "+")
+                    else:
+                        print("+" + "=" * 13 + "+" + "=" * 13 + "+" + "=" * 13 + "+")
+                else:
+                    print("+" + "-" * 13 + "+" + "-" * 13 + "+" + "-" * 13 + "+")
+
+        # print probaility winner
+        if probability_winner is not None:
+            if moves is not None and flag_validity_moves is not None and probability_moves is not None:
+                pass
+            else:
+                print("+" + "="*20 + "+" + "="*20 + "+")
+            print("| WHITE winning prob.".ljust(15) +
+                  "| BLACK winning prob.".ljust(15) +
+                  "|")
+            print("+" + "="*20 + "+" + "="*20 + "+")
+            print("| " + "{:.5f}".format(probability_winner*0.5 + 0.5).ljust(19) +
+                  "| " + "{:.5f}".format(1 - (probability_winner*0.5 + 0.5)).ljust(19) +
+                  "|")
+            print("+" + "=" * 20 + "+" + "=" * 20 + "+")
 
         # print selected move
         if move_selected is not None and probability_move_selected is not None:
-            pass
+            if (moves is not None and flag_validity_moves is not None and probability_moves is not None) or \
+                    probability_winner is not None:
+                pass
+            else:
+                print("+" + "="*20 + "+" + "="*20 + "+")
+            print("| Move done".ljust(21) +
+                  "| Prob. move done".ljust(21) +
+                  "|")
+            print("+" + "=" * 20 + "+" + "=" * 20 + "+")
+            print("| " + move_selected.ljust(19) +
+                  "| " + "{:.5f}".format(probability_move_selected).ljust(19) +
+                  "|")
+            print("+" + "=" * 20 + "+" + "=" * 20 + "+")
 
     @staticmethod
     def get_positions_from_move(move):

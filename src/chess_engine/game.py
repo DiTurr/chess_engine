@@ -31,34 +31,49 @@ class ChessGame:
 
         """
         # loop through the game
-        print("============================================================")
+        print("###############################################################################")
         self.game.print(print_board_state=True)
         while True:
             # press input to continue
-            print("[INFO] Press Enter to automatically calculate move or introduce move (UCI standard) to continue...")
+            print("[INFO] Press Enter to use ChessEngine or introduce move ...")
             user_move = input()
 
+            # move calculated be engine chess
             if user_move == "":
-                print("[INFO] Calculating move ...")
                 move = self.play_move()
-                if move is None:
-                    print("[ERROR] None of the by the chess engine calculated moves is legal ... ")
-                    print("[INFO] Do you want to continue manually? [N/-]")
+                if move is not None:
+                    self.func_emit(move)
+                    print("###############################################################################")
+                    self.game.print(print_board_state=True)
+                else:
+                    print("[ERROR] No move calculated by ChessEngine is valid ... ")
+                    print("[INFO] Do you want to continue manually? [N/[Y]]")
                     if input() == "N":
                         print("[INFO] GAME OVER !!")
                         break
                     else:
                         continue
-                else:
-                    self.func_emit(move)
+            # user move
             else:
                 if self.game.chess_board.is_legal(chess.Move.from_uci(user_move)):
                     self.game.make_move(user_move)
-                    print("============================================================")
+                    print("###############################################################################")
                     self.game.print(print_board_state=True)
                     self.func_emit(user_move)
                 else:
                     print("[ERROR] Requested move not legal")
+
+            # check status of the match
+            if self.game.chess_board.is_check():
+                pass
+            if self.game.chess_board.is_checkmate():
+                pass
+            if self.game.chess_board.is_stalemate():
+                pass
+            if self.game.chess_board.is_insufficient_material():
+                pass
+            if self.game.chess_board.is_seventyfive_moves():
+                pass
 
     def play_move(self):
         """
@@ -68,11 +83,10 @@ class ChessGame:
         # predict best moves
         serialized_board = self.game.serialize_board()
         y_hat_winner, y_hat_policy = self.alphazero_model.predict(serialized_board)
-        serialized_moves, probability_moves = self.alphazero_model.get_best_moves(y_hat_policy, num_moves=5)
+        serialized_moves, probability_moves = self.alphazero_model.get_best_moves(y_hat_policy, num_moves=1000)
 
         # are calculated moves legal?
         moves, flag_validity_moves = self.game.is_serialized_move_legal(serialized_moves)
-        self.game.print(moves=moves, flag_validity_moves=flag_validity_moves, probability_moves=probability_moves)
 
         # choose move from the different possibilities
         # serialized_moves: list of moves (serialized)
@@ -86,8 +100,13 @@ class ChessGame:
         # make move if possible
         if move_selected is not None:
             self.game.make_move(move_selected)
-            print("============================================================")
-            self.game.print(print_board_state=True)
+            self.game.print(moves=moves, flag_validity_moves=flag_validity_moves,
+                            probability_moves=probability_moves, num_moves_print=5,
+                            probability_winner=y_hat_winner,
+                            move_selected=move_selected, probability_move_selected=probability_move_selected)
             return move_selected
         else:
+            self.game.print(moves=moves, flag_validity_moves=flag_validity_moves,
+                            probability_moves=probability_moves, num_moves_print=5,
+                            probability_winner=y_hat_winner)
             return None
