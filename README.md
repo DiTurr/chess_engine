@@ -1,2 +1,2 @@
-# chess_engine
-Chess engine based on Alphazero
+# Chess Engine based on Alphazero
+...
