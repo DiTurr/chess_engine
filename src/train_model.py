@@ -7,8 +7,8 @@ Preprocess PGN database.
 from torch.utils.data import DataLoader  # NOQA
 import torch.optim as optim
 
-from src.chess_engine.database import PGNDatabase
-from src.chess_engine.model import AlphaZeroModel, AlphaLoss
+from .chess_engine.database import PGNDatabase
+from .chess_engine.model import AlphaZeroModel, AlphaLoss
 
 PATH_LOAD_MODEL = "/home/ditu/Documents/03_Projects/chess_engine/models/model1.pth"
 

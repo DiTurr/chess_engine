@@ -10,7 +10,7 @@ from PyQt5.QtSvg import QSvgWidget
 from PyQt5 import QtWidgets, QtCore
 import sys
 
-from src.chess_engine.game import ChessGame
+from chess_engine.game import ChessGame # NOQA
 
 
 class MyWidget(QtWidgets.QWidget):
