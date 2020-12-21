@@ -1,0 +1,5 @@
+*.pgn
+models/
+.idea/
+__pycache__/
+*.7z
