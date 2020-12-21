@@ -8,6 +8,7 @@ import chess
 
 from .model import AlphaZeroModel
 from .board import ChessBoard
+import torch.optim as optim
 
 
 class ChessGame:
@@ -42,17 +43,18 @@ class ChessGame:
             if user_move == "":
                 move = self.play_move()
                 if move is not None:
-                    self.func_emit(move)
                     print("===========================================================================================")
                     self.game.print(print_board_state=True)
+                    self.func_emit(move)
                 else:
                     print("[ERROR] No move calculated by ChessEngine is valid ... ")
                     print("[INFO] Do you want to continue manually? [N/[Y]]")
                     if input() == "N":
-                        print("[INFO] GAME OVER !!")
+                        print("[INFO] GAME-OVER!!")
                         break
                     else:
                         continue
+
             # user move
             else:
                 if self.game.chess_board.is_legal(chess.Move.from_uci(user_move)):
@@ -65,15 +67,19 @@ class ChessGame:
 
             # check status of the match
             if self.game.chess_board.is_check():
-                pass
+                print("[INFO] Check!!")
             if self.game.chess_board.is_checkmate():
-                pass
+                print("[INFO] Checkmate!! GAME-OVER!!")
+                break
             if self.game.chess_board.is_stalemate():
-                pass
+                print("[INFO] Stalemate!! GAME-OVER!!")
+                break
             if self.game.chess_board.is_insufficient_material():
-                pass
+                print("[INFO] No sufficient material to do checkmate!! DRAW!!")
+                break
             if self.game.chess_board.is_seventyfive_moves():
-                pass
+                print("[INFO] Seventyfive-moves rule!! DRAW!!")
+                break
 
     def play_move(self):
         """

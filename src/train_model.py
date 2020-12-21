@@ -7,10 +7,10 @@ Preprocess PGN database.
 from torch.utils.data import DataLoader  # NOQA
 import torch.optim as optim
 
-from .chess_engine.database import PGNDatabase
-from .chess_engine.model import AlphaZeroModel, AlphaLoss
+from chess_engine.database import PGNDatabase  # NOQA
+from chess_engine.model import AlphaZeroModel, AlphaLoss  # NOQA
 
-PATH_LOAD_MODEL = "/home/ditu/Documents/03_Projects/chess_engine/models/model1.pth"
+PATH_LOAD_MODEL = "/home/ditu/Documents/03_Projects/chess_engine/models/model.pth"
 
 if __name__ == "__main__":
     print("[INFO] Generating dataloaders ...")
@@ -42,7 +42,7 @@ if __name__ == "__main__":
         alphazero_model.retrain(PATH_LOAD_MODEL, epochs=2)
 
     print("[INFO] saving model ...")
-    alphazero_model.save_model("/home/ditu/Documents/03_Projects/chess_engine/models/model1.pth", save_generator=True)
+    alphazero_model.save_model("/home/ditu/Documents/03_Projects/chess_engine/models/model.pth", save_generator=True)
 
     print("[INFO] ploting training history ...")
     alphazero_model.plot_history()

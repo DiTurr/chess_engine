@@ -11,7 +11,7 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 import numpy as np
 
-NUM_RESIDUAL_LAYERS = 20
+NUM_RESIDUAL_LAYERS = 40
 NUM_CHANNELS_CONV2D = 256
 
 
@@ -66,19 +66,22 @@ class AlphaZeroModel:
             # close progress bar
             pbar.close()
 
-    def retrain(self, path_load_model, epochs):
+    def retrain(self, path_load_model, epochs, training_generator, validation_generator,
+                loss_function, optimizer):
         """
 
         """
         # set attributes
-        self.load_model(path_load_model)
+        self.load_model(path_load_model, optimizer)
+        self.training_generator = training_generator
+        self.validation_generator = validation_generator
+        self.loss_function = loss_function
 
         # CUDA for PyTorch
         use_cuda = torch.cuda.is_available()
         device = torch.device("cuda:0" if use_cuda else "cpu")
 
         # loop over epochs
-        self.history = {"loss": [], "val_loss": []}
         for epoch in range(self.epochs, self.epochs + epochs):
             # create progress bar
             pbar = tqdm(total=len(self.training_generator) + len(self.validation_generator),
@@ -96,6 +99,9 @@ class AlphaZeroModel:
 
             # close progress bar
             pbar.close()
+
+        # update the number of already trained epochs
+        self.epochs = self.epochs + epochs
 
     def train_epoch(self, device, pbar):
         """
@@ -182,50 +188,28 @@ class AlphaZeroModel:
         y_hat_policy = y_hat_policy.cpu().detach().numpy().reshape((-1, 1))
         return y_hat_winner, y_hat_policy
 
-    def save_model(self, path_save_model, save_generator=True):
+    def save_model(self, path_save_model):
         """
 
         """
-        if save_generator:
-            torch.save({
-                "epoch": self.epochs,
-                "model_state_dict": self.model.state_dict(),
-                "training_generator": self.training_generator,
-                "validation_generator": self.validation_generator,
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "loss_function": self.loss_function,
-                "optimizer": self.optimizer,
-                "history": self.history,
-            }, path_save_model)
-        else:
-            torch.save({
-                "epoch": self.epochs,
-                "model_state_dict": self.model.state_dict(),
-                "optimizer_state_dict": self.optimizer.state_dict(),
-                "loss_function": self.loss_function,
-                "optimizer": self.optimizer,
-                "history": self.history,
-            }, path_save_model)
+        torch.save({
+          "epoch": self.epochs,
+          "model_state_dict": self.model.state_dict(),
+          "optimizer_state_dict": self.optimizer.state_dict(),
+          "history": self.history,
+        }, path_save_model)
 
-    def load_model(self, path_load_model):
+    def load_model(self, path_load_model, optimizer=None):
         """
 
 
         """
         checkpoint = torch.load(path_load_model)
         self.model.load_state_dict(checkpoint["model_state_dict"])
-
+        if optimizer is not None:
+            self.optimizer = optimizer
+            # self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
         self.epochs = checkpoint["epoch"]
-
-        self.training_generator = checkpoint["training_generator"]
-
-        self.validation_generator = checkpoint["validation_generator"]
-
-        self.loss_function = checkpoint["loss_function"]
-
-        self.optimizer = checkpoint["optimizer"]
-        self.optimizer.load_state_dict(checkpoint["optimizer_state_dict"])
-
         self.history = checkpoint["history"]
 
     def plot_history(self):

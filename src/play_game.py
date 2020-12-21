@@ -51,7 +51,8 @@ class ChessEngineBackend(QtCore.QObject):
     
     @QtCore.pyqtSlot()
     def chess_engine_backend(self):
-        game = ChessGame(path_load_model="/home/ditu/Documents/03_Projects/chess_engine/models/alphazero_model.pth",
+        game = ChessGame(path_load_model="/home/ditu/Documents/03_Projects/chess_engine/models"
+                                         "/alphazero_40layersmodel_1000000.pth",
                          func_emit=self.move.emit) # NOQA
         game.play_game()
 
